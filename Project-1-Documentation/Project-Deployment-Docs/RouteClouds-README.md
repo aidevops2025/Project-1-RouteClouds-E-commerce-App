@@ -387,8 +387,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🛠️ Author & Community
 
-This project is crafted by [**Harshhaa**](https://github.com/NotHarshhaa) 💡.  
-I'd love to hear your feedback! Feel free to share your thoughts.
+This project is crafted by [**RouteClouds**](https://routeclouds.com).
 
 ### 📧 Connect with me:
 
