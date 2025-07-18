@@ -1,0 +1,51 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-migration
+  namespace: routeclouds-ns
+spec:
+  ttlSecondsAfterFinished: 100
+  template:
+    spec:
+      containers:
+      - name: test-migration
+        image: postgres:13
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "=== Testing Database Migration Environment ==="
+          echo "Checking environment variables..."
+          env | grep -E "(DB_|DATABASE_)" || echo "No DB environment variables found"
+          echo ""
+          echo "Testing database connectivity..."
+          if [ -n "$DATABASE_URL" ]; then
+            echo "DATABASE_URL is set"
+            # Extract components from DATABASE_URL
+            DB_HOST=$(echo "$DATABASE_URL" | sed -n 's/.*@\([^:]*\):.*/\1/p')
+            DB_USER=$(echo "$DATABASE_URL" | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+            DB_NAME=$(echo "$DATABASE_URL" | sed -n 's/.*\/\([^?]*\).*/\1/p')
+            echo "Extracted DB_HOST: $DB_HOST"
+            echo "Extracted DB_USER: $DB_USER"
+            echo "Extracted DB_NAME: $DB_NAME"
+            
+            echo "Testing connection..."
+            PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "SELECT version();" || echo "Connection failed"
+          else
+            echo "DATABASE_URL not set"
+          fi
+          echo "=== Test completed ==="
+        envFrom:
+        - secretRef:
+            name: db-secrets
+        - configMapRef:
+            name: app-config
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+      restartPolicy: Never
+      activeDeadlineSeconds: 180
+  backoffLimit: 2

@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: routeclouds_ecommerce_db
+      POSTGRES_USER: routeclouds_user
+      POSTGRES_PASSWORD: routeclouds_ecommerce_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U routeclouds_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: awsfreetier30/routeclouds-backend:latest
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=db
+      - DB_NAME=routeclouds_ecommerce_db
+      - DB_USER=routeclouds_user
+      - DB_PASSWORD=routeclouds_ecommerce_password
+      - DB_PORT=5432
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: awsfreetier30/routeclouds-frontend:latest
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

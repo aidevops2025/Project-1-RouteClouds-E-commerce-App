@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-db
+  namespace: routeclouds-ns
+  labels:
+    service: database
+spec:
+  type: ExternalName
+  externalName: routeclouds-prod-db.c6t4q0g6i4n5.us-east-1.rds.amazonaws.com
+  ports:
+  - port: 5432
+  # postgres-db.devopsdozo.svc.cluster.local  

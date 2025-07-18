@@ -1,0 +1,839 @@
+import React from 'react';
+
+// Simple Error Boundary Component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('App Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-gray-50 p-8">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-4xl font-bold text-red-600 mb-8">
+              🚨 RouteClouds E-Commerce - Error Detected
+            </h1>
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-semibold mb-4">Error Details:</h2>
+              <pre className="text-sm bg-gray-100 p-4 rounded overflow-auto">
+                {this.state.error?.toString()}
+              </pre>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                Reload Page
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Enhanced E-Commerce Component with Authentication and Cart
+function RouteCloudsECommerce() {
+  const [products, setProducts] = React.useState([]);
+  const [categories, setCategories] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+  const [user, setUser] = React.useState(null);
+  const [cart, setCart] = React.useState([]);
+  const [showLogin, setShowLogin] = React.useState(false);
+  const [showRegister, setShowRegister] = React.useState(false);
+  const [authLoading, setAuthLoading] = React.useState(false);
+
+  // Form validation functions
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePassword = (password) => {
+    // Minimum 6 characters, at least one letter and one number
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{6,}$/;
+    return passwordRegex.test(password);
+  };
+
+  // Authentication functions
+  const handleLogin = async (email, password) => {
+    setAuthLoading(true);
+    setError(null);
+
+    // Validation
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      setAuthLoading(false);
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address');
+      setAuthLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: email, password })
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData.user);
+        localStorage.setItem('token', userData.token);
+        setShowLogin(false);
+        setError(null);
+        loadCart();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Invalid email or password');
+      }
+    } catch (err) {
+      setError('Login failed. Please check your connection and try again.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleRegister = async (firstName, lastName, username, email, password, confirmPassword) => {
+    setAuthLoading(true);
+    setError(null);
+
+    // Validation
+    if (!firstName || !lastName || !username || !email || !password || !confirmPassword) {
+      setError('Please fill in all fields');
+      setAuthLoading(false);
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address');
+      setAuthLoading(false);
+      return;
+    }
+
+    if (!validatePassword(password)) {
+      setError('Password must be at least 6 characters long and contain both letters and numbers');
+      setAuthLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      setAuthLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          email,
+          password,
+          firstName,
+          lastName
+        })
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData.user);
+        localStorage.setItem('token', userData.token);
+        setShowRegister(false);
+        setError(null);
+        loadCart();
+      } else {
+        const errorData = await response.json();
+        if (response.status === 409) {
+          setError('An account with this email already exists. Please use a different email or try logging in.');
+        } else {
+          setError(errorData.message || 'Registration failed. Please try again.');
+        }
+      }
+    } catch (err) {
+      setError('Registration failed. Please check your connection and try again.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setCart([]);
+    localStorage.removeItem('token');
+  };
+
+  // Cart functions
+  const loadCart = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const response = await fetch('/api/cart', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const cartData = await response.json();
+        setCart(cartData);
+      }
+    } catch (err) {
+      console.error('Failed to load cart:', err);
+    }
+  };
+
+  const addToCart = async (productId) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setShowLogin(true);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/cart/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ productId: productId, quantity: 1 })
+      });
+
+      if (response.ok) {
+        loadCart();
+      } else {
+        setError('Failed to add to cart');
+      }
+    } catch (err) {
+      setError('Failed to add to cart: ' + err.message);
+    }
+  };
+
+  const removeFromCart = async (cartItemId) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const response = await fetch(`/api/cart/remove/${cartItemId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        loadCart();
+      } else {
+        setError('Failed to remove item from cart');
+      }
+    } catch (err) {
+      setError('Failed to remove item: ' + err.message);
+    }
+  };
+
+  const clearCart = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const response = await fetch('/api/cart/clear', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        loadCart();
+      } else {
+        setError('Failed to clear cart');
+      }
+    } catch (err) {
+      setError('Failed to clear cart: ' + err.message);
+    }
+  };
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch products and categories
+        const [productsRes, categoriesRes] = await Promise.all([
+          fetch('/api/products'),
+          fetch('/api/categories')
+        ]);
+
+        if (!productsRes.ok || !categoriesRes.ok) {
+          throw new Error('Failed to fetch data');
+        }
+
+        const productsData = await productsRes.json();
+        const categoriesData = await categoriesRes.json();
+
+        setProducts(productsData);
+        setCategories(categoriesData);
+
+        // Check if user is logged in
+        const token = localStorage.getItem('token');
+        if (token) {
+          try {
+            const userResponse = await fetch('/api/auth/profile', {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (userResponse.ok) {
+              const userData = await userResponse.json();
+              setUser(userData);
+              loadCart();
+            }
+          } catch (err) {
+            console.error('Failed to load user profile:', err);
+          }
+        }
+      } catch (err) {
+        setError(err.message);
+        console.error('Error fetching data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Login Modal Component
+  const LoginModal = () => {
+    const [email, setEmail] = React.useState('');
+    const [password, setPassword] = React.useState('');
+    const [localError, setLocalError] = React.useState('');
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      setLocalError('');
+      handleLogin(email, password);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-96 max-w-md mx-4">
+          <h2 className="text-2xl font-semibold mb-4 text-center">Login to RouteClouds</h2>
+
+          {(error || localError) && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+              <p className="text-red-600 text-sm">{error || localError}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Username or Email</label>
+              <input
+                type="text"
+                placeholder="Enter your username or email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+
+            <div className="flex space-x-3 pt-2">
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {authLoading ? 'Logging in...' : 'Login'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowLogin(false); setError(null); }}
+                className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-400 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <button
+                onClick={() => { setShowLogin(false); setShowRegister(true); setError(null); }}
+                className="text-blue-600 hover:underline font-medium"
+              >
+                Register here
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Register Modal Component
+  const RegisterModal = () => {
+    const [firstName, setFirstName] = React.useState('');
+    const [lastName, setLastName] = React.useState('');
+    const [username, setUsername] = React.useState('');
+    const [email, setEmail] = React.useState('');
+    const [password, setPassword] = React.useState('');
+    const [confirmPassword, setConfirmPassword] = React.useState('');
+    const [localError, setLocalError] = React.useState('');
+    const [passwordStrength, setPasswordStrength] = React.useState('');
+
+    const checkPasswordStrength = (pwd) => {
+      if (pwd.length === 0) return '';
+      if (pwd.length < 6) return 'Too short';
+      if (!validatePassword(pwd)) return 'Need letters and numbers';
+      return 'Strong';
+    };
+
+    const handlePasswordChange = (pwd) => {
+      setPassword(pwd);
+      setPasswordStrength(checkPasswordStrength(pwd));
+    };
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      setLocalError('');
+      handleRegister(firstName, lastName, username, email, password, confirmPassword);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-96 max-w-md mx-4 max-h-screen overflow-y-auto">
+          <h2 className="text-2xl font-semibold mb-4 text-center">Create Your Account</h2>
+
+          {(error || localError) && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+              <p className="text-red-600 text-sm">{error || localError}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                <input
+                  type="text"
+                  placeholder="First name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                <input
+                  type="text"
+                  placeholder="Last name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+              <input
+                type="text"
+                placeholder="Choose a username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This will be used for login
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                placeholder="Create a password"
+                value={password}
+                onChange={(e) => handlePasswordChange(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                required
+              />
+              {password && (
+                <div className="mt-1 text-xs">
+                  <span className={`${passwordStrength === 'Strong' ? 'text-green-600' :
+                    passwordStrength === 'Need letters and numbers' ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                    {passwordStrength}
+                  </span>
+                </div>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Minimum 6 characters with letters and numbers
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+              <input
+                type="password"
+                placeholder="Confirm your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                required
+              />
+              {confirmPassword && password !== confirmPassword && (
+                <p className="text-xs text-red-600 mt-1">Passwords do not match</p>
+              )}
+            </div>
+
+            <div className="flex space-x-3 pt-2">
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {authLoading ? 'Creating Account...' : 'Create Account'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowRegister(false); setError(null); }}
+                className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-400 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-600">
+              Already have an account?{' '}
+              <button
+                onClick={() => { setShowRegister(false); setShowLogin(true); setError(null); }}
+                className="text-blue-600 hover:underline font-medium"
+              >
+                Login here
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading RouteClouds E-Commerce...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="text-2xl font-semibold text-red-800 mb-4">⚠️ Error Loading Data</h2>
+            <p className="text-red-600">{error}</p>
+            <button
+              onClick={() => { setError(null); window.location.reload(); }}
+              className="mt-4 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header with Authentication and Cart */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-6xl mx-auto px-8 py-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold text-blue-600">
+              🛒 RouteClouds E-Commerce
+            </h1>
+
+            <div className="flex items-center space-x-4">
+              {user ? (
+                <>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-600">Welcome, {user.name || user.email}!</span>
+                    <div className="relative">
+                      <button className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                        🛒 Cart ({cart.length})
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <div className="space-x-3">
+                  <button
+                    onClick={() => setShowLogin(true)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  >
+                    Login
+                  </button>
+                  <button
+                    onClick={() => setShowRegister(true)}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                  >
+                    Register
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto p-8">
+
+        {/* Status Section */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h2 className="text-2xl font-semibold mb-4">✅ System Status</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">{products.length}</div>
+              <div className="text-green-800">Products Available</div>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{categories.length}</div>
+              <div className="text-blue-800">Categories</div>
+            </div>
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600">✓</div>
+              <div className="text-purple-800">Database Connected</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Categories Section */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h2 className="text-2xl font-semibold mb-4">📂 Product Categories</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {categories.map((category) => (
+              <div key={category.id} className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+                <h3 className="font-semibold text-lg text-gray-800">{category.name}</h3>
+                <p className="text-gray-600 text-sm mt-1">{category.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Products Section */}
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-2xl font-semibold mb-4">🛍️ Featured Products</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {products.map((product) => (
+              <div key={product.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-semibold text-lg text-gray-800">{product.name}</h3>
+                  <span className="text-xl font-bold text-green-600">${product.price}</span>
+                </div>
+                <p className="text-gray-600 text-sm mb-3">{product.description}</p>
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                    {product.category_name}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    Stock: {product.stock_quantity}
+                  </span>
+                </div>
+                <button
+                  onClick={() => addToCart(product.id)}
+                  className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  disabled={product.stock_quantity === 0}
+                >
+                  {product.stock_quantity === 0 ? 'Out of Stock' : user ? 'Add to Cart' : 'Login to Purchase'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* API Links Section */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
+          <h2 className="text-2xl font-semibold mb-4">🔗 API Endpoints</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <a
+              href="/api/hello"
+              target="_blank"
+              className="block p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div className="font-medium text-blue-600">GET /api/hello</div>
+              <div className="text-sm text-gray-600">Backend API Information</div>
+            </a>
+            <a
+              href="/api/products"
+              target="_blank"
+              className="block p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div className="font-medium text-blue-600">GET /api/products</div>
+              <div className="text-sm text-gray-600">Product Catalog</div>
+            </a>
+            <a
+              href="/api/categories"
+              target="_blank"
+              className="block p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div className="font-medium text-blue-600">GET /api/categories</div>
+              <div className="text-sm text-gray-600">Product Categories</div>
+            </a>
+            <a
+              href="/api/health"
+              target="_blank"
+              className="block p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div className="font-medium text-blue-600">GET /api/health</div>
+              <div className="text-sm text-gray-600">System Health Check</div>
+            </a>
+          </div>
+        </div>
+
+        {/* User Status Section */}
+        {user && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
+            <h2 className="text-2xl font-semibold mb-4">👤 User Dashboard</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">{user.name || 'User'}</div>
+                <div className="text-blue-800">Logged In</div>
+              </div>
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">{cart.length}</div>
+                <div className="text-green-800">Items in Cart</div>
+              </div>
+              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <div className="text-2xl font-bold text-purple-600">✓</div>
+                <div className="text-purple-800">Ready to Shop</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cart Section */}
+        {user && cart.length > 0 && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
+            <h2 className="text-2xl font-semibold mb-4">🛒 Your Shopping Cart</h2>
+            <div className="space-y-4">
+              {cart.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg text-gray-900">{item.product.name}</h3>
+                    <p className="text-sm text-gray-600">{item.product.brand} - {item.product.category}</p>
+                    <p className="text-sm text-gray-500">Price: ${item.product.price} each</p>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Quantity</p>
+                      <p className="text-lg font-semibold">{item.quantity}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Total</p>
+                      <p className="text-lg font-semibold text-green-600">${item.totalPrice.toFixed(2)}</p>
+                    </div>
+                    <button
+                      onClick={() => removeFromCart(item.id)}
+                      className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <div className="border-t pt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-xl font-semibold">Total: ${cart.reduce((total, item) => total + item.totalPrice, 0).toFixed(2)}</span>
+                  <div className="space-x-2">
+                    <button
+                      onClick={clearCart}
+                      className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+                    >
+                      Clear Cart
+                    </button>
+                    <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                      Checkout
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Modals */}
+      {showLogin && <LoginModal />}
+      {showRegister && <RegisterModal />}
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <RouteCloudsECommerce />
+    </ErrorBoundary>
+  );
+}
+
+export default App;

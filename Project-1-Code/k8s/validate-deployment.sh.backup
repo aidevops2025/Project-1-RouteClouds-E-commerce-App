@@ -1,0 +1,117 @@
+#!/bin/bash
+
+# Set namespace
+NAMESPACE="3-tier-app-eks"
+
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}Starting deployment validation...${NC}"
+
+# Check namespace exists
+echo -e "\n${YELLOW}Checking namespace...${NC}"
+if kubectl get namespace $NAMESPACE > /dev/null 2>&1; then
+  echo -e "${GREEN}✓ Namespace $NAMESPACE exists${NC}"
+else
+  echo -e "${RED}✗ Namespace $NAMESPACE does not exist${NC}"
+  exit 1
+fi
+
+# Check deployments
+echo -e "\n${YELLOW}Checking deployments...${NC}"
+DEPLOYMENTS=("backend" "frontend")
+for DEPLOYMENT in "${DEPLOYMENTS[@]}"; do
+  READY=$(kubectl -n $NAMESPACE get deployment $DEPLOYMENT -o jsonpath='{.status.readyReplicas}')
+  TOTAL=$(kubectl -n $NAMESPACE get deployment $DEPLOYMENT -o jsonpath='{.status.replicas}')
+  
+  if [ "$READY" == "$TOTAL" ] && [ "$READY" -gt 0 ]; then
+    echo -e "${GREEN}✓ Deployment $DEPLOYMENT is ready ($READY/$TOTAL)${NC}"
+  else
+    echo -e "${RED}✗ Deployment $DEPLOYMENT is not ready ($READY/$TOTAL)${NC}"
+    kubectl -n $NAMESPACE describe deployment $DEPLOYMENT
+    kubectl -n $NAMESPACE get pods -l app=$DEPLOYMENT
+  fi
+done
+
+# Check services
+echo -e "\n${YELLOW}Checking services...${NC}"
+SERVICES=("backend" "frontend" "postgres-db")
+for SERVICE in "${SERVICES[@]}"; do
+  if kubectl -n $NAMESPACE get service $SERVICE > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ Service $SERVICE exists${NC}"
+    kubectl -n $NAMESPACE get service $SERVICE -o wide
+  else
+    echo -e "${RED}✗ Service $SERVICE does not exist${NC}"
+  fi
+done
+
+# Check ingress
+echo -e "\n${YELLOW}Checking ingress...${NC}"
+if kubectl -n $NAMESPACE get ingress 3-tier-app-ingress > /dev/null 2>&1; then
+  echo -e "${GREEN}✓ Ingress exists${NC}"
+  ALB_ENDPOINT=$(kubectl -n $NAMESPACE get ingress 3-tier-app-ingress -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+  if [ -n "$ALB_ENDPOINT" ]; then
+    echo -e "${GREEN}✓ ALB endpoint: $ALB_ENDPOINT${NC}"
+    
+    # Test frontend endpoint
+    echo -e "\n${YELLOW}Testing frontend endpoint...${NC}"
+    FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://$ALB_ENDPOINT)
+    if [ "$FRONTEND_STATUS" == "200" ]; then
+      echo -e "${GREEN}✓ Frontend is accessible (HTTP 200)${NC}"
+    else
+      echo -e "${RED}✗ Frontend returned HTTP $FRONTEND_STATUS${NC}"
+    fi
+    
+    # Test backend endpoint
+    echo -e "\n${YELLOW}Testing backend endpoint...${NC}"
+    BACKEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://$ALB_ENDPOINT/api/topics)
+    if [ "$BACKEND_STATUS" == "200" ]; then
+      echo -e "${GREEN}✓ Backend API is accessible (HTTP 200)${NC}"
+    else
+      echo -e "${RED}✗ Backend API returned HTTP $BACKEND_STATUS${NC}"
+    fi
+  else
+    echo -e "${RED}✗ ALB endpoint not available yet${NC}"
+  fi
+else
+  echo -e "${RED}✗ Ingress does not exist${NC}"
+fi
+
+# Check HPA
+echo -e "\n${YELLOW}Checking Horizontal Pod Autoscalers...${NC}"
+HPAS=("backend-hpa" "frontend-hpa")
+for HPA in "${HPAS[@]}"; do
+  if kubectl -n $NAMESPACE get hpa $HPA > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ HPA $HPA exists${NC}"
+    kubectl -n $NAMESPACE get hpa $HPA
+  else
+    echo -e "${RED}✗ HPA $HPA does not exist${NC}"
+  fi
+done
+
+# Check monitoring
+echo -e "\n${YELLOW}Checking monitoring setup...${NC}"
+if kubectl get namespace monitoring > /dev/null 2>&1; then
+  echo -e "${GREEN}✓ Monitoring namespace exists${NC}"
+  
+  # Check Prometheus
+  if kubectl -n monitoring get deployment prometheus-server > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ Prometheus is deployed${NC}"
+  else
+    echo -e "${RED}✗ Prometheus is not deployed${NC}"
+  fi
+  
+  # Check Grafana
+  if kubectl -n monitoring get deployment grafana > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ Grafana is deployed${NC}"
+  else
+    echo -e "${RED}✗ Grafana is not deployed${NC}"
+  fi
+else
+  echo -e "${YELLOW}! Monitoring namespace does not exist. Run setup-monitoring.sh to deploy monitoring tools.${NC}"
+fi
+
+echo -e "\n${YELLOW}Validation complete!${NC}"

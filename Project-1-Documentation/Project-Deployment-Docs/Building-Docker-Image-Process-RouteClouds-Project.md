@@ -1,0 +1,1158 @@
+# Building Docker Image Process - RouteClouds Project
+
+## Table of Contents
+1. [Overview](#overview)
+2. [CI/CD Workflow](#cicd-workflow)
+3. [Backend Docker Image Process](#backend-docker-image-process)
+4. [Frontend Docker Image Process](#frontend-docker-image-process)
+5. [Database Configuration](#database-configuration)
+6. [Manual vs CI/CD Approaches](#manual-vs-cicd-approaches)
+7. [Troubleshooting](#troubleshooting)
+
+## Overview
+
+This document provides a comprehensive guide for building Docker images in the RouteClouds E-Commerce project, covering both manual processes and CI/CD automation.
+
+### Project Structure
+```
+RouteClouds-E-Comm-Project/
+├── backend/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── src/
+├── frontend/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── src/
+├── k8s/
+│   ├── backend-deployment.yaml
+│   ├── frontend-deployment.yaml
+│   └── migration_job.yaml
+└── .github/workflows/
+    └── ci-cd.yml
+```
+
+## CI/CD Workflow
+
+### Correct CI/CD Process Flow
+
+1. **Developer Action**
+   ```bash
+   git add .
+   git commit -m "Update backend functionality"
+   git push origin main
+   ```
+
+2. **GitHub Actions Trigger**
+   - Detects push to main branch
+   - Reads Dockerfile from repository
+   - Builds image using repository code
+
+3. **Image Building Process**
+   ```yaml
+   - name: Build Backend Image
+     run: |
+       cd backend
+       docker build -t awsfreetier30/routeclouds-backend:latest .
+       docker build -t awsfreetier30/routeclouds-backend:${{ github.sha }} .
+   ```
+
+4. **Image Push to Docker Hub**
+   ```yaml
+   - name: Push to Docker Hub
+     run: |
+       docker push awsfreetier30/routeclouds-backend:latest
+       docker push awsfreetier30/routeclouds-backend:${{ github.sha }}
+   ```
+
+5. **Kubernetes Deployment**
+   - Pulls updated `:latest` image
+   - Deploys to cluster automatically
+
+### Key Difference: Manual vs CI/CD
+
+| Aspect | Manual Script Approach | CI/CD Approach |
+|--------|----------------------|----------------|
+| **Dockerfile** | Created temporarily | Permanent in repository |
+| **package.json** | Modified by script | Updated in repository |
+| **Consistency** | One-time fix | Repeatable builds |
+| **Version Control** | Not tracked | Fully tracked |
+| **Automation** | Manual execution | Automatic on push |
+
+## Backend Docker Image Process
+
+### Step 1: Dockerfile Configuration
+
+**Location:** `backend/Dockerfile`
+
+```dockerfile
+# Use Node.js 18 Alpine as base image
+FROM node:18-alpine
+
+# Install bash and essential tools for debugging
+RUN apk add --no-cache bash curl postgresql-client vim
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files first (for better caching)
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Build the TypeScript application
+RUN npm run build
+
+# Create database directory and migration files
+RUN mkdir -p /app/dist/database
+
+# Create migration script (embedded in Dockerfile)
+RUN cat > /app/dist/database/migrate.js << 'EOF'
+const { Pool } = require('pg');
+// ... migration logic ...
+EOF
+
+# Create seed script (embedded in Dockerfile)
+RUN cat > /app/dist/database/seed.js << 'EOF'
+const { Pool } = require('pg');
+// ... seeding logic ...
+EOF
+
+# Make scripts executable
+RUN chmod +x /app/dist/database/migrate.js
+RUN chmod +x /app/dist/database/seed.js
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8000/api/hello || exit 1
+
+# Start the application
+CMD ["npm", "start"]
+```
+
+### Step 2: Package.json Configuration
+
+**Location:** `backend/package.json`
+
+```json
+{
+  "name": "routeclouds-backend",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node dist/server.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "migrate": "node -e \"console.log('Running database migration...'); require('./dist/database/migrate.js');\"",
+    "seed": "node -e \"console.log('Running database seeding...'); require('./dist/database/seed.js');\""
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "morgan": "^1.10.0",
+    "pg": "^8.11.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.0",
+    "dotenv": "^16.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/express": "^4.17.17",
+    "@types/cors": "^2.8.13",
+    "@types/morgan": "^1.9.4",
+    "@types/pg": "^8.10.0",
+    "@types/bcryptjs": "^2.4.2",
+    "@types/jsonwebtoken": "^9.0.2",
+    "typescript": "^5.0.0",
+    "ts-node-dev": "^2.0.0"
+  }
+}
+```
+
+### Step 3: Build Process Explanation
+
+1. **Base Image Selection**
+   - `node:18-alpine` - Lightweight Linux distribution
+   - Smaller image size, faster builds
+
+2. **System Dependencies**
+   ```dockerfile
+   RUN apk add --no-cache bash curl postgresql-client vim
+   ```
+   - `bash` - Required for shell scripts
+   - `curl` - Health checks and debugging
+   - `postgresql-client` - Database connectivity testing
+   - `vim` - Container debugging
+
+3. **Application Dependencies**
+   ```dockerfile
+   COPY package*.json ./
+   RUN npm install
+   ```
+   - Copy package files first for Docker layer caching
+   - Install Node.js dependencies
+
+4. **Source Code and Build**
+   ```dockerfile
+   COPY . .
+   RUN npm run build
+   ```
+   - Copy application source code
+   - Compile TypeScript to JavaScript
+
+5. **Database Migration Setup**
+   - Create migration and seed scripts
+   - Embed database schema directly in image
+   - Make scripts executable
+
+6. **Runtime Configuration**
+   - Expose port 8000
+   - Configure health checks
+   - Set startup command
+
+## Frontend Docker Image Process
+
+### Step 1: Frontend Dockerfile
+
+**Location:** `frontend/Dockerfile`
+
+```dockerfile
+# Build stage
+FROM node:18-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Expose port
+EXPOSE 80
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+### Step 2: Frontend Package.json
+
+**Location:** `frontend/package.json`
+
+```json
+{
+  "name": "routeclouds-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.8.0",
+    "axios": "^1.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@vitejs/plugin-react": "^3.1.0",
+    "typescript": "^4.9.0",
+    "vite": "^4.1.0"
+  }
+}
+```
+
+### Step 3: Nginx Configuration
+
+**Location:** `frontend/nginx.conf`
+
+```nginx
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    server {
+        listen 80;
+        server_name localhost;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Handle React Router
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # API proxy to backend
+        location /api/ {
+            proxy_pass http://backend-service:8000/api/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
+}
+```
+
+### Step 4: Frontend Build Process
+
+1. **Multi-stage Build**
+   - **Builder stage**: Compile React/TypeScript application
+   - **Production stage**: Serve with Nginx
+
+2. **Build Optimization**
+   - Separate build and runtime environments
+   - Smaller final image size
+   - Better security (no build tools in production)
+
+3. **Static Asset Serving**
+   - Nginx serves compiled React application
+   - Handles routing for Single Page Application
+   - Proxies API calls to backend
+
+## Database Configuration
+
+### Database Setup Strategy
+
+The RouteClouds project uses **PostgreSQL** with the following configuration approach:
+
+1. **External Database Service**
+   - AWS RDS PostgreSQL instance
+   - Managed service for reliability
+   - Automatic backups and scaling
+
+2. **Database Connection**
+   ```javascript
+   const pool = new Pool({
+     user: process.env.DB_USER || 'routeclouds_user',
+     host: process.env.DB_HOST || 'localhost',
+     database: process.env.DB_NAME || 'routeclouds_ecommerce_db',
+     password: process.env.DB_PASSWORD || 'routeclouds_ecommerce_password',
+     port: process.env.DB_PORT || 5432,
+   });
+   ```
+
+3. **Environment Variables**
+   - Stored in Kubernetes Secrets
+   - AWS Secrets Manager integration
+   - Environment-specific configurations
+
+### Database Schema
+
+The migration script creates the following tables:
+
+1. **users** - User authentication and profiles
+2. **categories** - Product categories
+3. **products** - E-commerce products
+4. **cart_items** - Shopping cart functionality
+5. **orders** - Order management
+6. **order_items** - Order line items
+
+### Migration Process
+
+1. **Migration Job** (`k8s/migration_job.yaml`)
+   ```yaml
+   apiVersion: batch/v1
+   kind: Job
+   metadata:
+     name: database-migration
+   spec:
+     template:
+       spec:
+         containers:
+         - name: migration
+           image: awsfreetier30/routeclouds-backend:latest
+           command: ["/bin/bash", "-c"]
+           args:
+           - |
+             npm run migrate
+             npm run seed
+   ```
+
+2. **Execution Flow**
+   - Runs as Kubernetes Job
+   - Connects to PostgreSQL database
+   - Creates tables if they don't exist
+   - Seeds initial data
+   - Completes and terminates
+
+## Manual vs CI/CD Approaches
+
+### Manual Approach (Temporary Fixes)
+
+**Use Cases:**
+- Quick debugging and testing
+- Immediate problem resolution
+- Development environment fixes
+
+**Process:**
+1. Create temporary script
+2. Build image locally
+3. Push manually to Docker Hub
+4. Test in development
+
+**Limitations:**
+- Not version controlled
+- Not repeatable
+- Manual intervention required
+
+### CI/CD Approach (Production Ready)
+
+**Use Cases:**
+- Production deployments
+- Consistent builds
+- Team collaboration
+- Automated testing
+
+**Process:**
+1. Update Dockerfile in repository
+2. Commit changes to Git
+3. GitHub Actions builds automatically
+4. Tests run automatically
+5. Image pushed to Docker Hub
+6. Deployment triggered
+
+**Benefits:**
+- Version controlled
+- Repeatable builds
+- Automated testing
+- Team collaboration
+- Audit trail
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+1. **Shell Not Available**
+   ```dockerfile
+   # Add to Dockerfile
+   RUN apk add --no-cache bash
+   ```
+
+2. **npm Scripts Missing**
+   ```json
+   // Add to package.json
+   "scripts": {
+     "migrate": "node -e \"require('./dist/database/migrate.js');\"",
+     "seed": "node -e \"require('./dist/database/seed.js');\""
+   }
+   ```
+
+3. **TypeScript Compilation Errors**
+   ```bash
+   # Check dependencies
+   npm install @types/bcryptjs @types/pg
+   ```
+
+4. **Database Connection Issues**
+   ```bash
+   # Test connection in container
+   kubectl exec -it <pod-name> -- psql -h <db-host> -U <username> -d <database>
+   ```
+
+5. **Image Build Failures**
+   ```bash
+   # Check Docker build logs
+   docker build --no-cache -t test-image .
+   ```
+
+### Best Practices
+
+1. **Use Multi-stage Builds** for frontend
+2. **Layer Caching** - Copy package.json first
+3. **Health Checks** - Add container health monitoring
+4. **Security** - Use non-root users when possible
+5. **Size Optimization** - Use Alpine images
+6. **Environment Variables** - Use Kubernetes Secrets
+7. **Version Tagging** - Tag with both `:latest` and commit SHA
+
+## GitHub Actions CI/CD Pipeline
+
+### Complete CI/CD Configuration
+
+**Location:** `.github/workflows/ci-cd.yml`
+
+```yaml
+name: RouteClouds CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOCKER_HUB_USERNAME: awsfreetier30
+  BACKEND_IMAGE: awsfreetier30/routeclouds-backend
+  FRONTEND_IMAGE: awsfreetier30/routeclouds-frontend
+
+jobs:
+  backend-build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        npm install
+
+    - name: Run backend tests
+      run: |
+        cd backend
+        npm test
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ env.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+    - name: Build and push backend image
+      run: |
+        cd backend
+        docker build -t ${{ env.BACKEND_IMAGE }}:latest .
+        docker build -t ${{ env.BACKEND_IMAGE }}:${{ github.sha }} .
+        docker push ${{ env.BACKEND_IMAGE }}:latest
+        docker push ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm install
+
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm run build
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ env.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+    - name: Build and push frontend image
+      run: |
+        cd frontend
+        docker build -t ${{ env.FRONTEND_IMAGE }}:latest .
+        docker build -t ${{ env.FRONTEND_IMAGE }}:${{ github.sha }} .
+        docker push ${{ env.FRONTEND_IMAGE }}:latest
+        docker push ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+
+  deploy:
+    needs: [backend-build, frontend-build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region us-east-1 --name routeclouds-prod-cluster
+
+    - name: Deploy to Kubernetes
+      run: |
+        kubectl apply -f k8s/
+        kubectl rollout restart deployment/backend -n routeclouds-ns
+        kubectl rollout restart deployment/frontend -n routeclouds-ns
+```
+
+### Required GitHub Secrets
+
+Set up the following secrets in your GitHub repository:
+
+1. **DOCKER_HUB_TOKEN** - Docker Hub access token
+2. **AWS_ACCESS_KEY_ID** - AWS access key for EKS access
+3. **AWS_SECRET_ACCESS_KEY** - AWS secret key for EKS access
+
+## Implementation Steps
+
+### Step 1: Update Backend Dockerfile
+
+**Action Required:** Replace the temporary script approach with permanent Dockerfile
+
+```bash
+# Navigate to backend directory
+cd backend
+
+# Create production-ready Dockerfile
+cat > Dockerfile << 'EOF'
+FROM node:18-alpine
+
+# Install system dependencies
+RUN apk add --no-cache bash curl postgresql-client vim
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Build application
+RUN npm run build
+
+# Create database scripts directory
+RUN mkdir -p /app/dist/database
+
+# Copy migration scripts (if separate files exist)
+# COPY migrations/ /app/dist/database/
+
+# Create embedded migration script
+RUN cat > /app/dist/database/migrate.js << 'MIGRATE_EOF'
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  user: process.env.DB_USER || 'routeclouds_user',
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'routeclouds_ecommerce_db',
+  password: process.env.DB_PASSWORD || 'routeclouds_ecommerce_password',
+  port: process.env.DB_PORT || 5432,
+});
+
+async function migrate() {
+  console.log('🔄 Starting database migration...');
+
+  try {
+    await pool.query('SELECT NOW()');
+    console.log('✅ Database connection successful');
+
+    // Create tables
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        full_name VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) UNIQUE NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(200) NOT NULL,
+        description TEXT,
+        price DECIMAL(10,2) NOT NULL,
+        category_id INTEGER REFERENCES categories(id),
+        stock_quantity INTEGER DEFAULT 0,
+        image_url VARCHAR(500),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS cart_items (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, product_id)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        total_amount DECIMAL(10,2) NOT NULL,
+        status VARCHAR(50) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS order_items (
+        id SERIAL PRIMARY KEY,
+        order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id),
+        quantity INTEGER NOT NULL,
+        price DECIMAL(10,2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    console.log('🎉 Database migration completed successfully!');
+
+  } catch (error) {
+    console.error('❌ Migration failed:', error);
+    process.exit(1);
+  } finally {
+    await pool.end();
+  }
+}
+
+migrate();
+MIGRATE_EOF
+
+# Create seed script
+RUN cat > /app/dist/database/seed.js << 'SEED_EOF'
+const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
+
+const pool = new Pool({
+  user: process.env.DB_USER || 'routeclouds_user',
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'routeclouds_ecommerce_db',
+  password: process.env.DB_PASSWORD || 'routeclouds_ecommerce_password',
+  port: process.env.DB_PORT || 5432,
+});
+
+async function seed() {
+  console.log('🌱 Starting database seeding...');
+
+  try {
+    const userCount = await pool.query('SELECT COUNT(*) FROM users');
+    if (parseInt(userCount.rows[0].count) > 0) {
+      console.log('📊 Database already contains data, skipping seeding');
+      return;
+    }
+
+    // Seed categories
+    const categories = [
+      { name: 'Electronics', description: 'Electronic devices and gadgets' },
+      { name: 'Clothing', description: 'Fashion and apparel' },
+      { name: 'Books', description: 'Books and educational materials' },
+      { name: 'Home & Garden', description: 'Home improvement and gardening' }
+    ];
+
+    for (const category of categories) {
+      await pool.query(
+        'INSERT INTO categories (name, description) VALUES ($1, $2)',
+        [category.name, category.description]
+      );
+    }
+
+    // Seed test user
+    const hashedPassword = await bcrypt.hash('password123', 10);
+    await pool.query(
+      'INSERT INTO users (username, email, password_hash, full_name) VALUES ($1, $2, $3, $4)',
+      ['testuser', 'test@routeclouds.com', hashedPassword, 'Test User']
+    );
+
+    // Seed products
+    const products = [
+      { name: 'Laptop Pro', description: 'High-performance laptop', price: 1299.99, category_id: 1, stock: 10 },
+      { name: 'Smartphone X', description: 'Latest smartphone model', price: 899.99, category_id: 1, stock: 25 },
+      { name: 'Cotton T-Shirt', description: 'Comfortable cotton t-shirt', price: 29.99, category_id: 2, stock: 50 },
+      { name: 'Programming Guide', description: 'Complete programming handbook', price: 49.99, category_id: 3, stock: 15 }
+    ];
+
+    for (const product of products) {
+      await pool.query(
+        'INSERT INTO products (name, description, price, category_id, stock_quantity) VALUES ($1, $2, $3, $4, $5)',
+        [product.name, product.description, product.price, product.category_id, product.stock]
+      );
+    }
+
+    console.log('🎉 Database seeding completed successfully!');
+
+  } catch (error) {
+    console.error('❌ Seeding failed:', error);
+    process.exit(1);
+  } finally {
+    await pool.end();
+  }
+}
+
+seed();
+SEED_EOF
+
+# Make scripts executable
+RUN chmod +x /app/dist/database/migrate.js
+RUN chmod +x /app/dist/database/seed.js
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8000/api/hello || exit 1
+
+# Start application
+CMD ["npm", "start"]
+EOF
+```
+
+### Step 2: Update Package.json
+
+Ensure your `backend/package.json` has the correct scripts:
+
+```json
+{
+  "scripts": {
+    "start": "node dist/server.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "test": "jest",
+    "migrate": "node -e \"console.log('Running database migration...'); require('./dist/database/migrate.js');\"",
+    "seed": "node -e \"console.log('Running database seeding...'); require('./dist/database/seed.js');\""
+  }
+}
+```
+
+### Step 3: Create Frontend Dockerfile
+
+```bash
+# Navigate to frontend directory
+cd ../frontend
+
+# Create production Dockerfile
+cat > Dockerfile << 'EOF'
+# Build stage
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Build application
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine
+
+# Copy built application
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Expose port
+EXPOSE 80
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
+EOF
+
+# Create nginx configuration
+cat > nginx.conf << 'EOF'
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    server {
+        listen 80;
+        server_name localhost;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Handle React Router
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # API proxy to backend
+        location /api/ {
+            proxy_pass http://backend-service:8000/api/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+}
+EOF
+```
+
+### Step 4: Set Up GitHub Actions
+
+```bash
+# Create GitHub Actions directory
+mkdir -p .github/workflows
+
+# Create CI/CD pipeline file
+cat > .github/workflows/ci-cd.yml << 'EOF'
+# [Include the complete CI/CD configuration from above]
+EOF
+```
+
+### Step 5: Configure GitHub Secrets
+
+1. Go to your GitHub repository
+2. Navigate to Settings → Secrets and variables → Actions
+3. Add the following secrets:
+   - `DOCKER_HUB_TOKEN`: Your Docker Hub access token
+   - `AWS_ACCESS_KEY_ID`: AWS access key for EKS
+   - `AWS_SECRET_ACCESS_KEY`: AWS secret access key
+
+### Step 6: Test the CI/CD Pipeline
+
+```bash
+# Commit and push changes
+git add .
+git commit -m "Add production-ready Dockerfiles and CI/CD pipeline"
+git push origin main
+
+# Monitor GitHub Actions
+# Go to your repository → Actions tab
+# Watch the pipeline execution
+```
+
+---
+
+## CI/CD Process Deep Dive: Manual vs Automated Dockerfile Management
+
+### Understanding the Core Question
+
+**Question**: "In the CI/CD process, how is the new Dockerfile created with changes - manually or automated? What is the exact process?"
+
+### The Complete Answer
+
+#### **One-Time Manual Setup** (Infrastructure Configuration)
+
+The Dockerfile is created/updated **manually once** and committed to the repository:
+
+```bash
+# Step 1: Create/update Dockerfile with all required fixes
+# (Include bash support, npm scripts, database migration, etc.)
+
+# Step 2: Commit to repository
+git add backend/Dockerfile
+git commit -m "Add production-ready Dockerfile with all fixes"
+git push origin main
+
+# Step 3: Set up GitHub Actions pipeline (one-time)
+# Create .github/workflows/ci-cd.yml
+```
+
+#### **Automated Build Process** (Application Development)
+
+After the one-time setup, **every code change** triggers automated builds:
+
+```bash
+# Developer workflow (repeated for every feature/fix):
+# 1. Make application code changes
+git add src/new-feature.js
+git commit -m "Add new feature"
+git push origin main
+
+# 2. GitHub Actions automatically:
+#    - Uses existing Dockerfile from repository
+#    - Builds new image with updated code
+#    - Pushes to Docker Hub
+#    - Deploys to Kubernetes
+```
+
+### Why This Works: Dockerfile Instructions Handle Code Changes
+
+The Dockerfile contains **generic instructions** that work with any version of your code:
+
+```dockerfile
+# These instructions automatically handle code changes:
+COPY . .                    # Copies ALL current source code
+RUN npm install            # Installs current dependencies
+RUN npm run build          # Builds current code version
+CMD [ "npm", "start" ]     # Runs current application
+```
+
+### What Changes vs What Stays the Same
+
+| Component | Change Frequency | Reason | Example |
+|-----------|-----------------|--------|---------|
+| **Application Code** | Every development cycle | New features, bug fixes | Adding new API endpoints |
+| **package.json** | Occasionally | New dependencies | Adding `moment` library |
+| **Dockerfile** | Rarely | Infrastructure changes only | Adding Redis, changing base image |
+| **CI/CD Pipeline** | Very rarely | Build process changes | Adding new test stages |
+
+### Real-World Examples
+
+#### **Scenario 1: Adding New API Endpoint**
+
+**Code Change:**
+```javascript
+// src/routes/products.js - NEW FILE
+app.get('/api/products/search', (req, res) => {
+  // New search functionality
+});
+```
+
+**CI/CD Process:**
+1. ✅ Developer pushes code change
+2. ✅ GitHub Actions uses **existing Dockerfile**
+3. ✅ `COPY . .` automatically includes new route file
+4. ✅ `RUN npm run build` compiles updated code
+5. ✅ New Docker image contains new API endpoint
+6. ❌ **NO Dockerfile changes needed**
+
+#### **Scenario 2: Adding New Dependency**
+
+**Code Change:**
+```bash
+npm install axios  # Add new HTTP client
+```
+
+**CI/CD Process:**
+1. ✅ `package.json` updated automatically
+2. ✅ Developer commits and pushes changes
+3. ✅ GitHub Actions uses **existing Dockerfile**
+4. ✅ `COPY package*.json ./` includes updated package.json
+5. ✅ `RUN npm install` installs new dependency
+6. ❌ **NO Dockerfile changes needed**
+
+#### **Scenario 3: Infrastructure Change** (Rare)
+
+**When Dockerfile DOES need updating:**
+```dockerfile
+# Example: Adding Redis support
+RUN apk add --no-cache redis
+
+# Example: Changing base image
+FROM node:20-alpine  # Upgraded from 18
+
+# Example: Adding new build step
+RUN npm run generate-docs
+```
+
+**Process:**
+1. ✅ Manually update Dockerfile
+2. ✅ Commit and push Dockerfile changes
+3. ✅ Future builds use updated Dockerfile
+
+### Key Insights
+
+#### **The Dockerfile is a "Recipe"**
+- Works with any version of your application code
+- Defines the **environment** and **build process**
+- Doesn't need to change for application features
+
+#### **Separation of Concerns**
+```
+Application Code (Changes frequently)
+    ↓
+Dockerfile (Changes rarely)
+    ↓
+CI/CD Pipeline (Changes very rarely)
+```
+
+#### **Benefits of This Approach**
+1. **Consistency**: Same build environment for all code versions
+2. **Automation**: No manual intervention for code changes
+3. **Reliability**: Tested build process works repeatedly
+4. **Efficiency**: Developers focus on code, not infrastructure
+
+### Common Misconceptions Clarified
+
+❌ **Misconception**: "Need to update Dockerfile for every code change"
+✅ **Reality**: Dockerfile handles code changes automatically
+
+❌ **Misconception**: "CI/CD creates new Dockerfile each time"
+✅ **Reality**: CI/CD uses existing Dockerfile from repository
+
+❌ **Misconception**: "Manual scripts are needed for production"
+✅ **Reality**: Repository-based Dockerfile is production-ready
+
+### Best Practices Summary
+
+1. **Create Dockerfile once** with all infrastructure requirements
+2. **Commit to repository** for version control
+3. **Set up CI/CD pipeline** to use repository Dockerfile
+4. **Focus on application code** - let CI/CD handle building
+5. **Update Dockerfile only** when infrastructure requirements change
+
+### Workflow Comparison
+
+| Approach | Dockerfile Source | Sustainability | Production Ready |
+|----------|------------------|----------------|------------------|
+| **Manual Scripts** | Generated by script | ❌ Not sustainable | ❌ No |
+| **Repository-based** | Committed to Git | ✅ Fully sustainable | ✅ Yes |
+
+This approach ensures that your development workflow is efficient, your builds are consistent, and your deployment process is reliable and automated.
+
+## Summary
+
+You are absolutely correct about the CI/CD workflow. The script approach I created earlier was for **immediate problem-solving**, but for production, we need:
+
+1. **Permanent Dockerfiles** in the repository
+2. **GitHub Actions pipeline** for automated builds
+3. **Proper version control** of all build configurations
+4. **Automated testing and deployment**
+
+The key difference is:
+- **Manual script**: Temporary fix, not sustainable
+- **CI/CD approach**: Production-ready, repeatable, automated
+
+This document provides the complete process for implementing proper Docker image building in your RouteClouds project, ensuring both development efficiency and production reliability.

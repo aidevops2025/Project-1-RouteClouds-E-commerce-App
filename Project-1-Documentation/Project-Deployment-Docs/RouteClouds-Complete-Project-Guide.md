@@ -1,0 +1,355 @@
+# RouteClouds E-Commerce Platform - Complete Project Guide
+
+## 🚀 **Project Overview**
+
+The **RouteClouds E-Commerce Platform** is a modern, production-ready 3-tier application deployed on AWS EKS with complete CI/CD pipeline integration. This project demonstrates advanced DevOps practices including containerization, orchestration, infrastructure as code, and automated deployment pipelines.
+
+### **🎯 Application Purpose**
+RouteClouds is a specialized e-commerce platform for cloud infrastructure services, featuring:
+- **Product Catalog**: Cloud infrastructure products and services
+- **User Authentication**: Secure registration and login system
+- **Shopping Cart**: Real-time cart functionality
+- **Order Management**: Complete order processing workflow
+- **Admin Dashboard**: Product and category management
+- **Responsive Design**: Optimized for desktop usage
+
+## 🏗️ **Architecture Overview**
+
+### **Technology Stack**
+
+| **Tier** | **Technology** | **Details** |
+|----------|----------------|-------------|
+| **Frontend** | React.js + Vite | Modern UI with TailwindCSS, TypeScript support |
+| **Backend** | Node.js + Express.js | RESTful API with TypeScript, JWT authentication |
+| **Database** | PostgreSQL | AWS RDS with automated backups |
+| **Container Registry** | Docker Hub | awsfreetier30 account with automated builds |
+| **Orchestration** | AWS EKS | Kubernetes with managed node groups |
+| **Infrastructure** | Terraform | Infrastructure as Code |
+| **CI/CD** | GitHub Actions | Automated build, test, and deployment |
+
+### **High-Level Architecture**
+
+```
+GitHub → GitHub Actions → Docker Hub → AWS EKS → AWS RDS
+   ↓           ↓             ↓          ↓         ↓
+ Code Push → Build Images → Store → Deploy → Database
+```
+
+## 🐳 **Docker Hub Integration**
+
+### **Container Images**
+- **Backend**: `awsfreetier30/routeclouds-backend:latest`
+- **Frontend**: `awsfreetier30/routeclouds-frontend:latest`
+
+### **Image Features**
+- **Multi-stage builds** for optimized production images
+- **Security**: Non-root user execution
+- **Caching**: GitHub Actions cache for faster builds
+- **Versioning**: Automatic tagging with commit SHA + latest
+
+### **Build Process**
+1. **Code Push** triggers GitHub Actions
+2. **Build** both frontend and backend images
+3. **Test** application components
+4. **Push** to Docker Hub with version tags
+5. **Deploy** to EKS with updated images
+
+## ☸️ **Kubernetes Configuration**
+
+### **Namespace Structure**
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: routeclouds-ns
+```
+
+### **Key Manifests**
+
+| **File** | **Purpose** | **Key Updates** |
+|----------|-------------|-----------------|
+| `secrets.yaml` | Database credentials | RouteClouds database config |
+| `configmap.yaml` | Environment variables | Node.js specific settings |
+| `backend.yaml` | Backend deployment | Docker Hub image, health checks |
+| `frontend.yaml` | Frontend deployment | Docker Hub image, /login health check |
+| `migration_job.yaml` | Database migration | Node.js migration commands |
+| `ingress.yaml` | Load balancer config | Updated health check paths |
+
+### **Health Checks**
+- **Backend**: `/api/hello` endpoint
+- **Frontend**: `/login` endpoint
+- **Database**: Connection pooling with retry logic
+
+## 🔄 **CI/CD Pipeline**
+
+### **GitHub Actions Workflow**
+
+```yaml
+name: RouteClouds CI/CD Pipeline
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+```
+
+### **Pipeline Stages**
+
+1. **🔍 Code Checkout & Setup**
+   - Checkout repository
+   - Setup Node.js 18
+   - Install dependencies
+
+2. **🧪 Build & Test**
+   - Build backend (TypeScript compilation)
+   - Build frontend (Vite build)
+   - Run tests (when available)
+
+3. **🐳 Docker Build & Push**
+   - Login to Docker Hub
+   - Build images with caching
+   - Push with latest + SHA tags
+
+4. **☸️ Deploy to EKS**
+   - Configure AWS credentials
+   - Update Kubernetes manifests
+   - Deploy to cluster
+   - Verify rollout status
+
+5. **✅ Smoke Testing**
+   - Test backend API endpoints
+   - Test frontend accessibility
+   - Verify database connectivity
+
+6. **🔄 Rollback on Failure**
+   - Automatic rollback on deployment failure
+   - Restore previous stable version
+
+### **Required GitHub Secrets**
+
+```bash
+# Docker Hub
+DOCKER_USERNAME=awsfreetier30
+DOCKER_PASSWORD=Dexter#$9
+
+# AWS Configuration
+AWS_REGION=us-east-1
+EKS_CLUSTER_NAME=routeclouds-prod-cluster
+KUBE_NAMESPACE=routeclouds-ns
+OIDC_ROLE_ARN=arn:aws:iam::ACCOUNT:role/github-actions-role
+```
+
+## 🗄️ **Database Configuration**
+
+### **RouteClouds Database Schema**
+
+```sql
+-- Database: routeclouds_ecommerce_db
+-- User: routeclouds_user
+-- Password: routeclouds_ecommerce_password
+
+-- Categories Table
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Products Table
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2),
+    category_id INTEGER REFERENCES categories(id),
+    brand VARCHAR(100),
+    stock_quantity INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Users Table
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Orders Table
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    total_amount DECIMAL(10,2),
+    status VARCHAR(50) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### **Sample Data**
+- **4 Categories**: Cloud Infrastructure, Networking Equipment, Security Solutions, DevOps Tools
+- **4 Products**: AWS EC2 Instance, Cisco Router, Firewall Appliance, Jenkins Server
+- **Test Users**: Regular user accounts for authentication testing
+
+## 🌐 **API Endpoints**
+
+### **Backend API Structure**
+
+| **Endpoint** | **Method** | **Purpose** | **Authentication** |
+|--------------|------------|-------------|-------------------|
+| `/api/hello` | GET | API information & health check | No |
+| `/api/status` | GET | Database connection status | No |
+| `/api/categories` | GET | List all product categories | No |
+| `/api/products` | GET | List all products | No |
+| `/api/products/:id` | GET | Get specific product | No |
+| `/api/auth/register` | POST | User registration | No |
+| `/api/auth/login` | POST | User login | No |
+| `/api/auth/profile` | GET | User profile | Yes |
+| `/api/cart` | GET | Get user cart | Yes |
+| `/api/cart/add` | POST | Add item to cart | Yes |
+| `/api/orders` | GET | List user orders | Yes |
+| `/api/orders/create` | POST | Create new order | Yes |
+
+### **API Response Examples**
+
+```json
+// GET /api/hello
+{
+  "message": "Hello from the RouteClouds E-Commerce Backend API!",
+  "version": "2.0.0",
+  "features": [
+    "User Authentication & Authorization",
+    "Product Catalog Management",
+    "Shopping Cart System",
+    "Order Management",
+    "Database Integration"
+  ]
+}
+
+// GET /api/categories
+[
+  {
+    "id": 1,
+    "name": "Cloud Infrastructure",
+    "description": "Cloud computing and infrastructure services"
+  }
+]
+
+// GET /api/products
+[
+  {
+    "id": 1,
+    "name": "AWS EC2 Instance",
+    "description": "Scalable virtual server in the cloud",
+    "price": 299.99,
+    "category_id": 1,
+    "brand": "Amazon Web Services",
+    "stock_quantity": 100
+  }
+]
+```
+
+## 🚀 **Deployment Process**
+
+### **Local Development**
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd DevOps-Project-36/routeclouds-ns
+
+# Start development environment
+docker-compose up --build
+
+# Test production images
+docker-compose -f docker-compose.prod.yml up -d
+
+# Access application
+# Frontend: http://localhost:3000
+# Backend: http://localhost:8000/api/hello
+# Login: http://localhost:3000/login
+```
+
+### **Production Deployment**
+
+```bash
+# 1. Configure GitHub Secrets (in repository settings)
+# 2. Deploy infrastructure
+cd infra/
+terraform init
+terraform plan
+terraform apply
+
+# 3. Deploy application (automatic via CI/CD)
+git push origin main
+
+# 4. Verify deployment
+kubectl get pods -n routeclouds-ns
+kubectl get services -n routeclouds-ns
+kubectl get ingress -n routeclouds-ns
+```
+
+## 📊 **Monitoring & Validation**
+
+### **Health Check Commands**
+
+```bash
+# Kubernetes cluster status
+kubectl get nodes
+kubectl get pods -n routeclouds-ns
+kubectl describe deployment backend -n routeclouds-ns
+
+# Application health
+curl https://your-domain.com/api/hello
+curl https://your-domain.com/login
+
+# Database connectivity
+kubectl logs -n routeclouds-ns -l app=backend | grep "Database"
+```
+
+### **Troubleshooting**
+
+```bash
+# Check pod logs
+kubectl logs -f deployment/backend -n routeclouds-ns
+kubectl logs -f deployment/frontend -n routeclouds-ns
+
+# Check service endpoints
+kubectl get endpoints -n routeclouds-ns
+
+# Check ingress status
+kubectl describe ingress -n routeclouds-ns
+```
+
+## 🔐 **Security Features**
+
+- **Container Security**: Non-root user execution, minimal base images
+- **Network Security**: Private subnets for database, security groups
+- **Authentication**: JWT-based user authentication
+- **Data Security**: Kubernetes secrets for sensitive data
+- **Access Control**: IAM roles and RBAC for Kubernetes
+- **Encryption**: TLS for external traffic, encryption at rest for RDS
+
+## 🧹 **Cleanup Process**
+
+```bash
+# Delete Kubernetes resources
+kubectl delete namespace routeclouds-ns
+
+# Destroy infrastructure
+cd infra/
+terraform destroy -auto-approve
+
+# Clean up Docker images
+docker system prune -a
+```
+
+---
+
+**🎉 Project Status: Production Ready**
+
+The RouteClouds E-Commerce Platform is fully integrated with Docker Hub, GitHub Actions CI/CD, and ready for production deployment on AWS EKS.
+
+**📧 Support**: For questions or issues, refer to the troubleshooting guide or create an issue in the repository.

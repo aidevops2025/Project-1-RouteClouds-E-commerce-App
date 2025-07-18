@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: routeclouds-ns
+data:
+  DB_PORT: "5432"
+  NODE_ENV: "production"
+  PORT: "8000"
+  # Database credentials are in the Secret
