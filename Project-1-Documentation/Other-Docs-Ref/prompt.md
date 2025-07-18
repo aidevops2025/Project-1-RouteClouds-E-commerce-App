@@ -1,4 +1,0 @@
-can you create the seperate section for this migration troubleshooting including the root cause , apporach to find the issue and solution for the issue along with all commands and concepts that you mentioned to troubleshoot this issue and also please append this to the  "Augment-Troubleshooting-EKS-Node.md" guide do not override it 
-
-
-can you create the seperate section in Augment-Troubleshooting-EKS-Node.d for these different issue that we face and how we identify the root cause and find the solution for them  including all commands and concepts that you mentioned to troubleshoot this issue and also please append this to the  "Augment-Troubleshooting-EKS-Node.md" guide do not override it 
