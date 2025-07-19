@@ -26,8 +26,8 @@ fi
 echo "AWS credentials verified successfully!"
 
 # Get the VPC ID from your EKS cluster
-read -p "Enter your EKS cluster name [bootcamp-dev-cluster]: " CLUSTER_NAME
-CLUSTER_NAME=${CLUSTER_NAME:-bootcamp-dev-cluster}
+read -p "Enter your EKS cluster name [routeclouds-eks-cluster]: " CLUSTER_NAME
+CLUSTER_NAME=${CLUSTER_NAME:-routeclouds-eks-cluster}
 
 echo "Retrieving VPC ID from EKS cluster: $CLUSTER_NAME"
 VPC_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region $AWS_DEFAULT_REGION --query "cluster.resourcesVpcConfig.vpcId" --output text)

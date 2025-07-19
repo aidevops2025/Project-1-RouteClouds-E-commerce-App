@@ -1,6 +1,6 @@
 # DevOps Project 36: RouteClouds E-Commerce Platform on AWS EKS
 
-![Project Banner](https://miro.medium.com/v2/resize:fit:4800/format:webp/1*PB6jgC5b4bO0T3F-InbOLw.png)
+![Project Banner](Images/routeclouds_deployment_architecture.png)
 
 A comprehensive DevOps project demonstrating the deployment of a production-ready RouteClouds E-Commerce application on AWS EKS with complete CI/CD pipeline, Docker Hub integration, and real-world infrastructure setup including EKS, RDS, ALB, Route53, OIDC, IAM, and EC2.
 
@@ -64,66 +64,28 @@ The **RouteClouds E-Commerce Platform** is a modern, full-featured e-commerce ap
 ## 📁 Project Structure
 
 ```
-DevOps-Project-36/
-├── routeclouds-ns/
-│   ├── frontend/                 # React + Vite application
-│   │   ├── src/
-│   │   │   ├── components/       # React components
-│   │   │   ├── pages/           # Application pages
-│   │   │   ├── services/        # API service layer
-│   │   │   └── styles/          # TailwindCSS styles
-│   │   ├── public/
-│   │   ├── Dockerfile           # Multi-stage build
-│   │   ├── nginx.conf
-│   │   ├── package.json
-│   │   └── vite.config.js
+Project-1-RouteClouds-E-commerce-App/
+├── Project-1-Code/
 │   ├── backend/                  # Node.js + Express API
-│   │   ├── src/
-│   │   │   ├── routes/          # API route handlers
-│   │   │   ├── models/          # Database models
-│   │   │   ├── middleware/      # Express middleware
-│   │   │   └── config/          # Configuration files
-│   │   ├── dist/                # Compiled TypeScript
-│   │   ├── Dockerfile
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   └── index.ts
-│   ├── k8s/                      # Kubernetes manifests
-│   │   ├── namespace.yaml
-│   │   ├── secrets.yaml         # RouteClouds database credentials
-│   │   ├── configmap.yaml       # Node.js environment variables
-│   │   ├── frontend.yaml        # Frontend deployment with Docker Hub image
-│   │   ├── backend.yaml         # Backend deployment with Docker Hub image
-│   │   ├── database-service.yaml
-│   │   ├── migration_job.yaml   # Node.js migration job
-│   │   ├── ingress.yaml         # ALB ingress with /login health check
-│   │   └── hpa.yaml
-│   ├── infra/                    # Terraform infrastructure
-│   │   ├── main.tf
-│   │   ├── variables.tf         # Updated for RouteClouds
-│   │   ├── terraform.tfvars     # RouteClouds project name
-│   │   ├── eks.tf
-│   │   ├── network.tf
-│   │   ├── rds.tf               # RouteClouds database configuration
-│   │   └── outputs.tf
-│   ├── .github/
-│   │   └── workflows/
-│   │       └── deploy.yml       # GitHub Actions CI/CD pipeline
-│   ├── docker-compose.yml        # Local development
-│   ├── docker-compose.prod.yml   # Production with Docker Hub images
-│   ├── DOCKER-HUB-CICD-SETUP.md # CI/CD setup guide
-│   └── README.md
-└── Core-Concepts-Dir/
-    ├── New-Documents/            # Consolidated documentation
-    │   ├── New-3-Tier-Application-Deployment.md
-    │   ├── New-3-Tier-Application-Troubleshooting-Guide.md
-    │   ├── New-3-Tier-Core-Concepts.md
-    │   ├── New-3-Tier-Project-Deletion-Process.md
-    │   ├── Project-App-details.md
-    │   └── New-README.md
-    ├── 3-Tier-Subnet-Concept/    # Networking documentation
-    ├── Terraform-Code-Explaination/
-    └── App-Folder/
+│   ├── frontend/                # React + Vite application
+│   ├── k8s/                     # Kubernetes manifests
+│   ├── infra/                   # Terraform infrastructure code
+│   ├── docker-compose.yml       # Local development
+│   └── ...
+├── Project-1-Documentation/
+│   ├── README.md
+│   ├── Security-Groups-Details/
+│   │   └── RouteClouds-Security-Groups-Details.md
+│   ├── Terraform-Code-Explaination/
+│   │   └── Terraform-Infra-Code-Explaination.md
+│   ├── migration-job-troubleshooting.md
+│   └── ... (other documentation files and folders)
+├── Images/
+│   ├── routeclouds_deployment_architecture.png
+│   ├── routeclouds_security_group_architecture.png
+│   ├── routeclouds_sg_architecture_legend.png
+│   └── routeclouds_terraform_infra_code_workflow_(step-by-step).png
+└── ...
 ```
 
 ## 🚀 Quick Start
@@ -144,8 +106,8 @@ Ensure you have the following tools installed:
 
 1. **Clone the repository**:
    ```bash
-   git clone <repository-url>
-   cd DevOps-Project-36/routeclouds-ns
+   git clone https://github.com/aidevops2025/Project-1-RouteClouds-E-commerce-App.git
+   cd Project-1-RouteClouds-E-commerce-App
    ```
 
 2. **Start local development environment**:
@@ -179,39 +141,10 @@ For complete production deployment instructions, refer to:
 
 ### Core Documentation
 
-1. **[New-3-Tier-Application-Deployment.md](Core-Concepts-Dir/New-Documents/New-3-Tier-Application-Deployment.md)**
-   - Complete step-by-step deployment guide
-   - Infrastructure setup with Terraform
-   - Kubernetes configuration and deployment
-   - Load balancer and ingress setup
-   - Monitoring and validation procedures
-
-2. **[New-3-Tier-Application-Troubleshooting-Guide.md](Core-Concepts-Dir/New-Documents/New-3-Tier-Application-Troubleshooting-Guide.md)**
-   - Common issues and solutions
-   - EKS node group troubleshooting
-   - Application connectivity problems
-   - Load balancer and ingress issues
-   - Database connection troubleshooting
-
-3. **[New-3-Tier-Core-Concepts.md](Core-Concepts-Dir/New-Documents/New-3-Tier-Core-Concepts.md)**
-   - Kubernetes fundamentals
-   - AWS EKS concepts
-   - Networking and security groups
-   - Infrastructure as Code principles
-   - DevOps best practices
-
-4. **[New-3-Tier-Project-Deletion-Process.md](Core-Concepts-Dir/New-Documents/New-3-Tier-Project-Deletion-Process.md)**
-   - Safe resource cleanup procedures
-   - Systematic deletion process
-   - Troubleshooting deletion issues
-   - Cost optimization verification
-
-5. **[Project-App-details.md](Core-Concepts-Dir/New-Documents/Project-App-details.md)**
-   - Application architecture details
-   - Dockerfile configurations
-   - Database schema and models
-   - API endpoints and communication flow
-   - Environment configuration
+- **[RouteClouds-Security-Groups-Details.md](Project-1-Documentation/Security-Groups-Details/RouteClouds-Security-Groups-Details.md)**
+- **[Terraform-Infra-Code-Explaination.md](Project-1-Documentation/Terraform-Code-Explaination/Terraform-Infra-Code-Explaination.md)**
+- **[migration-job-troubleshooting.md](Project-1-Documentation/migration-job-troubleshooting.md)**
+- **Other documentation files in Project-1-Documentation/**
 
 ### Specialized Documentation
 
@@ -348,7 +281,7 @@ curl https://your-domain.com/login
 ## 🚨 Troubleshooting
 
 For comprehensive troubleshooting guidance, refer to:
-- **[New-3-Tier-Application-Troubleshooting-Guide.md](Core-Concepts-Dir/New-Documents/New-3-Tier-Application-Troubleshooting-Guide.md)**
+- **[migration-job-troubleshooting.md](Project-1-Documentation/migration-job-troubleshooting.md)**
 
 Common issues:
 - **Pod startup failures**: Check resource limits and image availability

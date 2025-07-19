@@ -6,7 +6,7 @@ from diagrams.onprem.ci import GithubActions
 from diagrams.onprem.iac import Terraform
 from diagrams.generic.blank import Blank
 
-with Diagram("Terraform Infra Code Workflow (Step-by-Step)", show=False, direction="TB"):
+with Diagram("RouteClouds Terraform Infra Code Workflow (Step-by-Step)", show=False, direction="TB"):
     # Step 1: Variables and Data
     tfvars = Blank("Step 1: terraform.tfvars")
     variables = Blank("Step 1: variables.tf")
@@ -14,7 +14,7 @@ with Diagram("Terraform Infra Code Workflow (Step-by-Step)", show=False, directi
 
     # Step 2: Network
     with Cluster("Step 2: Network (network.tf)"):
-        vpc = VPC("VPC")
+        vpc = VPC("routeclouds-vpc")
         pub_subnet = PublicSubnet("Public Subnets")
         priv_subnet = PrivateSubnet("Private Subnets")
         nat = NATGateway("NAT Gateway")
@@ -24,8 +24,8 @@ with Diagram("Terraform Infra Code Workflow (Step-by-Step)", show=False, directi
 
     # Step 3: EKS
     with Cluster("Step 3: EKS (eks.tf)"):
-        eks = EKS("EKS Cluster")
-        eks_nodes = EKS("Node Group")
+        eks = EKS("routeclouds-eks-cluster")
+        eks_nodes = EKS("routeclouds-node-group")
         eks >> eks_nodes
 
     # Step 5: OIDC/GitHub Actions

@@ -11,7 +11,8 @@
 
 ```bash
 # Clone your repository (assuming you have one)
-git clone https://github.com/kubernetes-zero-to-hero.git
+git clone https://github.com/aidevops2025/Project-1-RouteClouds-E-commerce-App.git
+cd Project-1-RouteClouds-E-commerce-App
 cd 3-tier-app-eks/
 ```
 
@@ -133,8 +134,8 @@ DATABASE_URL: "postgresql://postgres:<strong-password>@devops-learning-db.<your-
 Replace `<strong-password>` and `<your-db-endpoint>` with your actual values.
 
 ## Step 5: Deploy the Application
-Backend image: livingdevopswithakhilesh/devopsdozo:backend-latest
-Frontend image: livingdevopswithakhilesh/devopsdozo:frontend-latest
+Backend image: awsfreetier30/routeclouds-backend
+Frontend image: awsfreetier30/routeclouds-frontend
 
 ```bash
 # Apply Kubernetes manifests

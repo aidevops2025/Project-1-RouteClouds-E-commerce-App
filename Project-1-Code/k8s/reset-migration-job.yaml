@@ -10,7 +10,7 @@ spec:
     spec:
       containers:
       - name: migration
-        image: livingdevopswithakhilesh/devopsdozo:backend-latest
+        image: awsfreetier30/routeclouds-backend
         imagePullPolicy: Always
         command: ["/bin/bash", "-c"]
         args:

@@ -1,12 +1,12 @@
-# DevOps Learning Platform with React, Flask, and PostgreSQL
+# RouteClouds E-Commerce Platform - Local Development Guide
 
-This project demonstrates a 3-tier application architecture using React for the frontend, Flask for the backend, and PostgreSQL as the database.
+This project demonstrates a modern cloud-native e-commerce application using React for the frontend, Node.js/Express for the backend, and PostgreSQL as the database.
 
 ## Project Overview
 
-- **Frontend**: Built with [React](https://reactjs.org/), a JavaScript library for building user interfaces.
-- **Backend**: Powered by [Flask](https://flask.palletsprojects.com/), a lightweight WSGI web application framework.
-- **Database**: Uses [PostgreSQL](https://www.postgresql.org/), a powerful, open-source object-relational database system.
+- **Frontend**: Built with [React](https://reactjs.org/) and Vite for a fast, modern UI.
+- **Backend**: Powered by [Node.js/Express](https://expressjs.com/) with TypeScript for robust API development.
+- **Database**: Uses [PostgreSQL](https://www.postgresql.org/) for reliable, scalable data storage.
 
 ## Prerequisites
 
@@ -31,25 +31,7 @@ This will build the Docker images and start the containers for the frontend, bac
 
 ---
 
-### 2. Initialize the Database (First-Time Setup Only)
-
-In a new terminal, initialize the database by running the following commands:
-
-```bash
-docker-compose exec backend flask db upgrade
-```
-
-This applies the database migrations.
-
-Next, seed the database with initial data:
-
-```bash
-docker-compose exec backend python seed_data.py
-```
-
----
-
-### 3. Stop the Application
+### 2. Stop the Application
 
 To stop the application and remove the containers, run:
 
@@ -59,7 +41,7 @@ docker-compose down
 
 ---
 
-### 4. Restart the Application
+### 3. Restart the Application
 
 To restart the application, first stop it (if running) and then start it again:
 
@@ -76,4 +58,4 @@ docker-compose up --build
 
 ---
 
-Feel free to explore and modify the project to suit your learning needs. Happy coding!
+Feel free to explore and modify the project to suit your needs. Happy coding!

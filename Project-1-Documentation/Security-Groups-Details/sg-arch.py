@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Security Group Architecture Diagram Generator
+RouteClouds Security Group Architecture Diagram Generator
 
 This script generates a diagram visualizing the security group architecture
-for a 3-tier EKS application, showing relationships, roles, and rules based on
+for the RouteClouds EKS application, showing relationships, roles, and rules based on
 the actual security group analysis data.
 
 Requirements:
@@ -49,51 +49,51 @@ edge_attrs = {
 
 # Create the diagram
 with Diagram(
-    "3-Tier EKS Application Security Group Architecture",
+    "RouteClouds EKS Security Group Architecture",
     show=True,
     direction="LR",
     graph_attr=diagram_attrs,
     node_attr=node_attrs,
     edge_attr=edge_attrs,
-    filename="security_group_architecture"
+    filename="routeclouds_security_group_architecture"
 ) as diag:
     
     # External entities
     internet = Users("Internet")
     
     # VPC container
-    with Cluster("VPC: vpc-0a3065aa3dd1bd913"):
+    with Cluster("VPC: routeclouds-vpc"):
         igw = InternetGateway("Internet Gateway")
         
         # Application-Specific Load Balancer Security Group
         with Cluster("App LB Security Group\nsg-04fb7bcc9a38ec5bd"):
-            app_lb_sg = Shield("k8s-3tierapp-3tierapp-0d8d19d336")
+            app_lb_sg = Shield("k8s-routeclouds-app-0d8d19d336")
             app_lb = Ingress("Application Ingress")
         
         # Shared Load Balancer Security Group
         with Cluster("Shared LB Security Group\nsg-04cce232dcd1fb94e"):
-            shared_lb_sg = Shield("k8s-traffic-bootcampdevcluster-fb83cad852")
+            shared_lb_sg = Shield("k8s-traffic-routeclouds-eks-cluster-fb83cad852")
             shared_lb = ELB("Shared Load Balancer")
         
         # EKS Cluster
-        with Cluster("EKS Cluster: bootcamp-dev-cluster"):
+        with Cluster("EKS Cluster: routeclouds-eks-cluster"):
             
             # Control Plane Security Group
             with Cluster("Control Plane Security Group\nsg-0a2172ac09fcb8b08"):
-                control_plane_sg = Shield("eks-cluster-sg-bootcamp-dev-cluster-536903144")
+                control_plane_sg = Shield("eks-cluster-sg-routeclouds-eks-cluster-536903144")
                 control_plane = EKS("EKS Control Plane")
             
             # Cluster Security Group
             with Cluster("Cluster Security Group\nsg-07dac932c272e2161"):
-                cluster_sg = Shield("bootcamp-dev-cluster-cluster-20250707054149030200000009")
+                cluster_sg = Shield("routeclouds-eks-cluster-sg")
                 api_server = EKS("Kubernetes API Server")
             
             # Node Security Group
             with Cluster("Node Security Group\nsg-03f55598554824f73"):
-                node_sg = Shield("bootcamp-dev-cluster-node-2025070705415142120000000a")
-                pods = [Pod("Application Pod 1"), 
-                        Pod("Application Pod 2"),
-                        Pod("Application Pod 3")]
+                node_sg = Shield("routeclouds-eks-cluster-node-2025070705415142120000000a")
+                pods = [Pod("App Pod 1"), 
+                        Pod("App Pod 2"),
+                        Pod("App Pod 3")]
         
         # RDS Security Group
         with Cluster("RDS Security Group\nsg-028044234144db4c1"):
@@ -109,7 +109,7 @@ with Diagram(
     
     # Load Balancers to Nodes
     shared_lb >> Edge(label="TCP 80-8000") >> node_sg
-    app_lb >> Edge(label="Application Traffic") >> node_sg
+    app_lb >> Edge(label="App Traffic") >> node_sg
     
     # Node to API Server
     node_sg >> Edge(label="TCP 443") >> cluster_sg
@@ -131,12 +131,12 @@ with Diagram(
 
 # Add a legend explaining the diagram
 with Diagram(
-    "Security Group Architecture Legend",
+    "RouteClouds Security Group Architecture Legend",
     show=True,
     direction="TB",
     graph_attr={"fontsize": "14"},
     outformat="png",
-    filename="sg_architecture_legend"
+    filename="routeclouds_sg_architecture_legend"
 ) as legend:
     
     with Cluster("Legend"):
@@ -146,9 +146,9 @@ with Diagram(
             Users("External Entity")
             ELB("AWS Service")
             Pod("Kubernetes Resource")
-            
+        
         with Cluster("Security Concerns"):
             Edge(color="red", style="dashed", label="Security Vulnerability")
-            
+        
         with Cluster("Traffic Flow"):
             Edge(label="Allowed Traffic\nProtocol: Port(s)")

@@ -22,7 +22,7 @@ DOCKER_PASSWORD = Dexter#$9
 ### **AWS Configuration**
 ```
 AWS_REGION = us-east-1
-EKS_CLUSTER_NAME = bootcamp-dev-cluster
+EKS_CLUSTER_NAME = routeclouds-eks-cluster
 KUBE_NAMESPACE = 3-tier-app-eks
 OIDC_ROLE_ARN = arn:aws:iam::ACCOUNT:role/github-actions-role
 ```

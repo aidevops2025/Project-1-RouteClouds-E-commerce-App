@@ -1,8 +1,12 @@
 # Infra-Code-Explaination.md
 
+![Terraform Infra Code Workflow](../../Images/routeclouds_terraform_infra_code_workflow_(step-by-step).png)
+
 ## Overview
 
-This document explains the structure, relationships, and purpose of each Terraform file and module in the `infra` directory for the 3-tier EKS project. It will help you quickly understand how the infrastructure code is organized and how the different components interact.
+This document explains the structure, relationships, and purpose of each Terraform file and module in the `infra` directory for the **RouteClouds EKS project**. It will help you quickly understand how the infrastructure code is organized and how the different components interact.
+
+> **Note:** All resource names and modules follow the RouteClouds naming convention for clarity and consistency throughout the infrastructure codebase.
 
 ---
 
