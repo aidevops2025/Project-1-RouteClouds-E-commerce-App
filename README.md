@@ -1,4 +1,4 @@
-# DevOps Project 36: RouteClouds E-Commerce Platform on AWS EKS
+# RouteClouds E-Commerce Platform on AWS EKS
 
 ![Project Banner](Images/routeclouds_deployment_architecture.png)
 
@@ -141,10 +141,16 @@ For complete production deployment instructions, refer to:
 
 ### Core Documentation
 
-- **[RouteClouds-Security-Groups-Details.md](Project-1-Documentation/Security-Groups-Details/RouteClouds-Security-Groups-Details.md)**
-- **[Terraform-Infra-Code-Explaination.md](Project-1-Documentation/Terraform-Code-Explaination/Terraform-Infra-Code-Explaination.md)**
+- **[1.RouteClouds-Complete-Project-Guide.md](Project-1-Documentation/1.RouteClouds-Complete-Project-Guide.md)**
+- **[2.RouteClouds-App-Details.md](Project-1-Documentation/2.RouteClouds-App-Details.md)**
+- **[3.Building-Docker-Image-Process-RouteClouds-Project.md](Project-1-Documentation/3.Building-Docker-Image-Process-RouteClouds-Project.md)**
+- **[4.RouteClouds-Application-Deployment.md](Project-1-Documentation/4.RouteClouds-Application-Deployment.md)**
+- **[5.RouteClouds-Project-Deletion-Process.md](Project-1-Documentation/5.RouteClouds-Project-Deletion-Process.md)**
+- **[6.RouteClouds-Application-Troubleshooting-Guide.md](Project-1-Documentation/6.RouteClouds-Application-Troubleshooting-Guide.md)**
+- **[7.RouteClouds-Core-Concepts.md](Project-1-Documentation/7.RouteClouds-Core-Concepts.md)**
+- **[Security-Groups-Details/RouteClouds-Security-Groups-Details.md](Project-1-Documentation/Security-Groups-Details/RouteClouds-Security-Groups-Details.md)**
+- **[Terraform-Code-Explaination/Terraform-Infra-Code-Explaination.md](Project-1-Documentation/Terraform-Code-Explaination/Terraform-Infra-Code-Explaination.md)**
 - **[migration-job-troubleshooting.md](Project-1-Documentation/migration-job-troubleshooting.md)**
-- **Other documentation files in Project-1-Documentation/**
 
 ### Specialized Documentation
 
