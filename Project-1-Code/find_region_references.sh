@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set the directory to search
-SEARCH_DIR="/home/geek/2025-DevOps-Projects/CI-CD-Projects/NotHarshhaa-DevOps-Projects/DevOps-Projects/DevOps-Project-36/3-tier-app-eks/infra"
+SEARCH_DIR="/path/to/your/infra"
 
 # Set the region to search for
 SEARCH_REGION="ap-south-1"
