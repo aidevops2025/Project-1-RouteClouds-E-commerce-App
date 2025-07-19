@@ -148,9 +148,9 @@ For complete production deployment instructions, refer to:
 
 ### Specialized Documentation
 
-- **[3-Tier-Subnet-Concept/](Core-Concepts-Dir/3-Tier-Subnet-Concept/)** - Networking and security group concepts
-- **[Terraform-Code-Explaination/](Core-Concepts-Dir/Terraform-Code-Explaination/)** - Infrastructure code analysis
-- **[Migration-AP-South-US-East.md](Core-Concepts-Dir/Migration-AP-South-US-East.md)** - Regional migration guide
+- **[Security-Groups-Details/RouteClouds-Security-Groups-Details.md](Project-1-Documentation/Security-Groups-Details/RouteClouds-Security-Groups-Details.md)**
+- **[Terraform-Code-Explaination/Terraform-Infra-Code-Explaination.md](Project-1-Documentation/Terraform-Code-Explaination/Terraform-Infra-Code-Explaination.md)**
+- **[migration-job-troubleshooting.md](Project-1-Documentation/migration-job-troubleshooting.md)**
 
 ## 🏛️ Architecture
 
@@ -294,7 +294,7 @@ Common issues:
 To safely delete all resources and avoid charges:
 
 1. **Follow the systematic deletion process**:
-   - Refer to **[New-3-Tier-Project-Deletion-Process.md](Core-Concepts-Dir/New-Documents/New-3-Tier-Project-Deletion-Process.md)**
+   - Refer to **[RouteClouds-Project-Deletion-Process.md](Project-1-Documentation/RouteClouds-Project-Deletion-Process.md)**
 
 2. **Quick cleanup** (use with caution):
    ```bash
@@ -302,7 +302,7 @@ To safely delete all resources and avoid charges:
    kubectl delete namespace routeclouds-ns
    
    # Destroy infrastructure
-   cd infra/
+   cd Project-1-Code/infra/
    terraform destroy -auto-approve
    ```
 
